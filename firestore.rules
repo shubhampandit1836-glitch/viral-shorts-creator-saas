@@ -1,0 +1,63 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId);
+    }
+
+    match /videos/{videoId} {
+      allow read: if isOwner(resource.data.userId);
+      allow create: if isOwner(request.resource.data.userId);
+      allow update, delete: if isOwner(resource.data.userId);
+    }
+
+    match /jobs/{jobId} {
+      allow read: if isOwner(resource.data.userId);
+      allow create: if isOwner(request.resource.data.userId);
+      allow update: if isOwner(resource.data.userId);
+    }
+
+    match /clips/{clipId} {
+      allow read: if isOwner(resource.data.userId);
+      allow write: if false; // Lambdas write via Admin SDK
+    }
+
+    match /transcripts/{videoId} {
+      allow read: if isSignedIn() &&
+        get(/databases/$(database)/documents/videos/$(videoId)).data.userId == request.auth.uid;
+      allow write: if false; // Lambdas write via Admin SDK
+    }
+
+    match /captions/{captionId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    match /credits/{creditId} {
+      allow read: if isOwner(resource.data.userId);
+      allow write: if false;
+    }
+
+    match /payments/{paymentId} {
+      allow read: if isOwner(resource.data.userId);
+      allow write: if false;
+    }
+
+    match /analytics/{docId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+  }
+}

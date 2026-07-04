@@ -1,0 +1,183 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: AI Clip Finder - API Lambdas (frontend CRUD routes)
+
+Parameters:
+  ProjectPrefix:
+    Type: String
+    Default: acf-staging
+  Environment:
+    Type: String
+    Default: staging
+  FirebaseProjectId:
+    Type: String
+    Default: ai-clip-finder-8e055
+  LambdaExecutionRoleArn:
+    Type: String
+  UploadsBucketName:
+    Type: String
+  ProcessingBucketName:
+    Type: String
+  FirebaseSecretArn:
+    Type: String
+    Default: ""
+
+Resources:
+  UploadUrlLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${ProjectPrefix}-upload-url"
+      Description: Generate presigned S3 upload URL
+      Runtime: nodejs20.x
+      Handler: index.handler
+      Role: !Ref LambdaExecutionRoleArn
+      Timeout: 30
+      MemorySize: 256
+      Environment:
+        Variables:
+          UPLOADS_BUCKET: !Ref UploadsBucketName
+          FIREBASE_PROJECT_ID: !Ref FirebaseProjectId
+          ENVIRONMENT: !Ref Environment
+      Code:
+        ZipFile: |
+          exports.handler = async () => ({
+            statusCode: 501,
+            body: JSON.stringify({ message: "Deploy upload-url service code" })
+          });
+
+  VideosListLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${ProjectPrefix}-videos-list"
+      Runtime: nodejs20.x
+      Handler: index.handler
+      Role: !Ref LambdaExecutionRoleArn
+      Timeout: 30
+      MemorySize: 256
+      Environment:
+        Variables:
+          FIREBASE_PROJECT_ID: !Ref FirebaseProjectId
+      Code:
+        ZipFile: |
+          exports.handler = async () => ({ statusCode: 501, body: "{}" });
+
+  VideoGetLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${ProjectPrefix}-video-get"
+      Runtime: nodejs20.x
+      Handler: index.handler
+      Role: !Ref LambdaExecutionRoleArn
+      Timeout: 30
+      MemorySize: 256
+      Environment:
+        Variables:
+          FIREBASE_PROJECT_ID: !Ref FirebaseProjectId
+      Code:
+        ZipFile: |
+          exports.handler = async () => ({ statusCode: 501, body: "{}" });
+
+  VideoClipsLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${ProjectPrefix}-video-clips"
+      Runtime: nodejs20.x
+      Handler: index.handler
+      Role: !Ref LambdaExecutionRoleArn
+      Timeout: 30
+      MemorySize: 256
+      Environment:
+        Variables:
+          FIREBASE_PROJECT_ID: !Ref FirebaseProjectId
+          PROCESSING_BUCKET: !Ref ProcessingBucketName
+      Code:
+        ZipFile: |
+          exports.handler = async () => ({ statusCode: 501, body: "{}" });
+
+  VideoTranscriptLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${ProjectPrefix}-video-transcript"
+      Runtime: nodejs20.x
+      Handler: index.handler
+      Role: !Ref LambdaExecutionRoleArn
+      Timeout: 30
+      MemorySize: 256
+      Environment:
+        Variables:
+          FIREBASE_PROJECT_ID: !Ref FirebaseProjectId
+          PROCESSING_BUCKET: !Ref ProcessingBucketName
+      Code:
+        ZipFile: |
+          exports.handler = async () => ({ statusCode: 501, body: "{}" });
+
+  VideoRegenerateLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${ProjectPrefix}-video-regenerate"
+      Runtime: nodejs20.x
+      Handler: index.handler
+      Role: !Ref LambdaExecutionRoleArn
+      Timeout: 60
+      MemorySize: 256
+      Environment:
+        Variables:
+          FIREBASE_PROJECT_ID: !Ref FirebaseProjectId
+          CLIP_GENERATOR_FUNCTION: !Sub "${ProjectPrefix}-clip-generator"
+      Code:
+        ZipFile: |
+          exports.handler = async () => ({ statusCode: 501, body: "{}" });
+
+  VideoDeleteLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${ProjectPrefix}-video-delete"
+      Runtime: nodejs20.x
+      Handler: index.handler
+      Role: !Ref LambdaExecutionRoleArn
+      Timeout: 60
+      MemorySize: 256
+      Environment:
+        Variables:
+          FIREBASE_PROJECT_ID: !Ref FirebaseProjectId
+          UPLOADS_BUCKET: !Ref UploadsBucketName
+          PROCESSING_BUCKET: !Ref ProcessingBucketName
+      Code:
+        ZipFile: |
+          exports.handler = async () => ({ statusCode: 501, body: "{}" });
+
+  ClipDownloadLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${ProjectPrefix}-clip-download"
+      Runtime: nodejs20.x
+      Handler: index.handler
+      Role: !Ref LambdaExecutionRoleArn
+      Timeout: 30
+      MemorySize: 256
+      Environment:
+        Variables:
+          FIREBASE_PROJECT_ID: !Ref FirebaseProjectId
+          FIREBASE_SECRET_ARN: !Ref FirebaseSecretArn
+          PROCESSING_BUCKET: !Ref ProcessingBucketName
+          ENVIRONMENT: !Ref Environment
+      Code:
+        ZipFile: |
+          exports.handler = async () => ({ statusCode: 501, body: "{}" });
+
+Outputs:
+  UploadUrlLambdaArn:
+    Value: !GetAtt UploadUrlLambda.Arn
+  VideosListLambdaArn:
+    Value: !GetAtt VideosListLambda.Arn
+  VideoGetLambdaArn:
+    Value: !GetAtt VideoGetLambda.Arn
+  VideoClipsLambdaArn:
+    Value: !GetAtt VideoClipsLambda.Arn
+  VideoTranscriptLambdaArn:
+    Value: !GetAtt VideoTranscriptLambda.Arn
+  VideoRegenerateLambdaArn:
+    Value: !GetAtt VideoRegenerateLambda.Arn
+  VideoDeleteLambdaArn:
+    Value: !GetAtt VideoDeleteLambda.Arn
+  ClipDownloadLambdaArn:
+    Value: !GetAtt ClipDownloadLambda.Arn

@@ -1,0 +1,14 @@
+[
+  {
+    "ParameterKey": "Environment",
+    "ParameterValue": "staging"
+  },
+  {
+    "ParameterKey": "ProjectPrefix",
+    "ParameterValue": "acf-staging"
+  },
+  {
+    "ParameterKey": "FirebaseProjectId",
+    "ParameterValue": "ai-clip-finder-8e055"
+  }
+]

@@ -1,0 +1,242 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: AI Clip Finder - Pipeline Lambdas (S3 trigger + processing chain)
+
+Parameters:
+  ProjectPrefix:
+    Type: String
+    Default: acf-staging
+  Environment:
+    Type: String
+    Default: staging
+  FirebaseProjectId:
+    Type: String
+    Default: ai-clip-finder-8e055
+  LambdaExecutionRoleArn:
+    Type: String
+  UploadsBucketName:
+    Type: String
+  ProcessingBucketName:
+    Type: String
+  FirebaseSecretArn:
+    Type: String
+    Default: ""
+  OpenAISecretArn:
+    Type: String
+    Default: ""
+
+Resources:
+  UploadTriggerLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${ProjectPrefix}-upload-trigger"
+      Description: Trigger Lambda for Pipeline - starts on S3 upload
+      Runtime: nodejs20.x
+      Handler: index.handler
+      Role: !Ref LambdaExecutionRoleArn
+      Timeout: 60
+      MemorySize: 512
+      Environment:
+        Variables:
+          UPLOADS_BUCKET: !Ref UploadsBucketName
+          PROCESSING_BUCKET: !Ref ProcessingBucketName
+          AUDIO_EXTRACTOR_FUNCTION: !Sub "${ProjectPrefix}-audio-extractor"
+          FIREBASE_PROJECT_ID: !Ref FirebaseProjectId
+          FIREBASE_SECRET_ARN: !Ref FirebaseSecretArn
+          ENVIRONMENT: !Ref Environment
+      Code:
+        ZipFile: |
+          exports.handler = async () => ({ statusCode: 200 });
+
+  AudioExtractorLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${ProjectPrefix}-audio-extractor"
+      Description: Audio Extraction - FFmpeg extract audio.wav
+      Runtime: python3.12
+      Handler: handler.lambda_handler
+      Role: !Ref LambdaExecutionRoleArn
+      Timeout: 900
+      MemorySize: 1024
+      Environment:
+        Variables:
+          UPLOADS_BUCKET: !Ref UploadsBucketName
+          PROCESSING_BUCKET: !Ref ProcessingBucketName
+          WHISPER_TRANSCRIBER_FUNCTION: !Sub "${ProjectPrefix}-whisper-transcriber"
+          FIREBASE_SECRET_ARN: !Ref FirebaseSecretArn
+          FIREBASE_PROJECT_ID: !Ref FirebaseProjectId
+          FFMPEG_PATH: /var/task/ffmpeg
+      Code:
+        ZipFile: |
+          def lambda_handler(event, context):
+              return {"statusCode": 200}
+
+  WhisperTranscriberLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${ProjectPrefix}-whisper-transcriber"
+      Description: Whisper transcription
+      Runtime: python3.12
+      Handler: handler.lambda_handler
+      Role: !Ref LambdaExecutionRoleArn
+      Timeout: 900
+      MemorySize: 1024
+      Environment:
+        Variables:
+          PROCESSING_BUCKET: !Ref ProcessingBucketName
+          TRANSCRIPT_CHUNKER_FUNCTION: !Sub "${ProjectPrefix}-transcript-chunker"
+          OPENAI_SECRET_ARN: !Ref OpenAISecretArn
+          FIREBASE_SECRET_ARN: !Ref FirebaseSecretArn
+          FIREBASE_PROJECT_ID: !Ref FirebaseProjectId
+      Code:
+        ZipFile: |
+          def lambda_handler(event, context):
+              return {"statusCode": 200}
+
+  TranscriptChunkerLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${ProjectPrefix}-transcript-chunker"
+      Description: Split transcript into semantic chunks
+      Runtime: nodejs20.x
+      Handler: index.handler
+      Role: !Ref LambdaExecutionRoleArn
+      Timeout: 300
+      MemorySize: 512
+      Environment:
+        Variables:
+          PROCESSING_BUCKET: !Ref ProcessingBucketName
+          AI_ANALYZER_FUNCTION: !Sub "${ProjectPrefix}-ai-analyzer"
+      Code:
+        ZipFile: |
+          exports.handler = async () => ({ statusCode: 200 });
+
+  AIAnalyzerLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${ProjectPrefix}-ai-analyzer"
+      Description: AI Analyzer - virality, hooks, scores
+      Runtime: python3.12
+      Handler: handler.lambda_handler
+      Role: !Ref LambdaExecutionRoleArn
+      Timeout: 600
+      MemorySize: 2048
+      Environment:
+        Variables:
+          UPLOADS_BUCKET: !Ref UploadsBucketName
+          PROCESSING_BUCKET: !Ref ProcessingBucketName
+          CLIP_GENERATOR_FUNCTION: !Sub "${ProjectPrefix}-clip-generator"
+          OPENAI_SECRET_ARN: !Ref OpenAISecretArn
+          FIREBASE_SECRET_ARN: !Ref FirebaseSecretArn
+          FIREBASE_PROJECT_ID: !Ref FirebaseProjectId
+          NOTIFICATION_FUNCTION: !Sub "${ProjectPrefix}-notification-service"
+      Code:
+        ZipFile: |
+          def lambda_handler(event, context):
+              return {"statusCode": 200}
+
+  ClipGeneratorLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${ProjectPrefix}-clip-generator"
+      Description: Generate portrait + landscape clips
+      Runtime: python3.12
+      Handler: handler.lambda_handler
+      Role: !Ref LambdaExecutionRoleArn
+      Timeout: 900
+      MemorySize: 2048
+      Environment:
+        Variables:
+          UPLOADS_BUCKET: !Ref UploadsBucketName
+          PROCESSING_BUCKET: !Ref ProcessingBucketName
+          CAPTION_GENERATOR_FUNCTION: !Sub "${ProjectPrefix}-caption-generator"
+          THUMBNAIL_GENERATOR_FUNCTION: !Sub "${ProjectPrefix}-thumbnail-generator"
+      Code:
+        ZipFile: |
+          def lambda_handler(event, context):
+              return {"statusCode": 200}
+
+  CaptionGeneratorLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${ProjectPrefix}-caption-generator"
+      Description: Generate SRT/VTT captions
+      Runtime: python3.12
+      Handler: handler.lambda_handler
+      Role: !Ref LambdaExecutionRoleArn
+      Timeout: 600
+      MemorySize: 1024
+      Environment:
+        Variables:
+          PROCESSING_BUCKET: !Ref ProcessingBucketName
+          NOTIFICATION_FUNCTION: !Sub "${ProjectPrefix}-notification-service"
+      Code:
+        ZipFile: |
+          def lambda_handler(event, context):
+              return {"statusCode": 200}
+
+  ThumbnailGeneratorLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${ProjectPrefix}-thumbnail-generator"
+      Description: AI thumbnail ideas
+      Runtime: python3.12
+      Handler: handler.lambda_handler
+      Role: !Ref LambdaExecutionRoleArn
+      Timeout: 300
+      MemorySize: 1024
+      Environment:
+        Variables:
+          PROCESSING_BUCKET: !Ref ProcessingBucketName
+          OPENAI_SECRET_ARN: !Ref OpenAISecretArn
+      Code:
+        ZipFile: |
+          def lambda_handler(event, context):
+              return {"statusCode": 200}
+
+  NotificationServiceLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${ProjectPrefix}-notification-service"
+      Description: Update Firestore status on completion
+      Runtime: nodejs20.x
+      Handler: index.handler
+      Role: !Ref LambdaExecutionRoleArn
+      Timeout: 60
+      MemorySize: 256
+      Environment:
+        Variables:
+          FIREBASE_PROJECT_ID: !Ref FirebaseProjectId
+          FIREBASE_SECRET_ARN: !Ref FirebaseSecretArn
+          ENVIRONMENT: !Ref Environment
+      Code:
+        ZipFile: |
+          exports.handler = async () => ({ statusCode: 200 });
+
+  UploadTriggerPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref UploadTriggerLambda
+      Action: lambda:InvokeFunction
+      Principal: s3.amazonaws.com
+      SourceArn: !Sub "arn:aws:s3:::${UploadsBucketName}"
+      SourceAccount: !Ref AWS::AccountId
+
+Outputs:
+  UploadTriggerLambdaArn:
+    Value: !GetAtt UploadTriggerLambda.Arn
+  AudioExtractorLambdaArn:
+    Value: !GetAtt AudioExtractorLambda.Arn
+  AIAnalyzerLambdaArn:
+    Value: !GetAtt AIAnalyzerLambda.Arn
+  WhisperTranscriberLambdaArn:
+    Value: !GetAtt WhisperTranscriberLambda.Arn
+  TranscriptChunkerLambdaArn:
+    Value: !GetAtt TranscriptChunkerLambda.Arn
+  ClipGeneratorLambdaArn:
+    Value: !GetAtt ClipGeneratorLambda.Arn
+  CaptionGeneratorLambdaArn:
+    Value: !GetAtt CaptionGeneratorLambda.Arn
+  ThumbnailGeneratorLambdaArn:
+    Value: !GetAtt ThumbnailGeneratorLambda.Arn
+  NotificationServiceLambdaArn:
+    Value: !GetAtt NotificationServiceLambda.Arn

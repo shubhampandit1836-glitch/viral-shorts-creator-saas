@@ -1,0 +1,19 @@
+{
+  "name": "@acf/notification-service",
+  "version": "0.1.0",
+  "private": true,
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "esbuild src/index.ts --bundle --platform=node --target=node20 --outfile=dist/index.js --format=cjs --external:@aws-sdk/*",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@acf/firebase-admin": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.149",
+    "@types/node": "^20",
+    "esbuild": "^0.25.5",
+    "typescript": "^5.9.3"
+  }
+}

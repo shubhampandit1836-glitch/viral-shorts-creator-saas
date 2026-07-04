@@ -1,0 +1,116 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: AI Clip Finder - S3 Storage (uploads + processing buckets)
+
+Parameters:
+  Environment:
+    Type: String
+    Default: staging
+  ProjectPrefix:
+    Type: String
+    Default: acf-staging
+  UploadTriggerLambdaArn:
+    Type: String
+    Default: ""
+  CorsAllowOrigin:
+    Type: String
+    Default: "http://localhost:3000"
+    Description: Primary allowed origin for S3 CORS (browser direct upload)
+
+Conditions:
+  HasUploadTrigger: !Not [!Equals [!Ref UploadTriggerLambdaArn, ""]]
+
+Mappings:
+  BucketNames:
+    staging:
+      Uploads: acf-staging-uploads
+      Processing: acf-staging-processing
+    production:
+      Uploads: acf-production-uploads
+      Processing: acf-production-processing
+
+Resources:
+  UploadsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !FindInMap [BucketNames, !Ref Environment, Uploads]
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders:
+              - "*"
+            AllowedMethods:
+              - GET
+              - PUT
+              - POST
+              - HEAD
+            AllowedOrigins:
+              - !Ref CorsAllowOrigin
+              - "http://127.0.0.1:3000"
+            ExposedHeaders:
+              - ETag
+            MaxAge: 3600
+      NotificationConfiguration: !If
+        - HasUploadTrigger
+        - LambdaConfigurations:
+            - Event: s3:ObjectCreated:*
+              Function: !Ref UploadTriggerLambdaArn
+              Filter:
+                S3Key:
+                  Rules:
+                    - Name: prefix
+                      Value: uploads/
+        - !Ref AWS::NoValue
+      Tags:
+        - Key: Project
+          Value: ai-clip-finder
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Purpose
+          Value: video-upload-trigger
+
+  ProcessingBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !FindInMap [BucketNames, !Ref Environment, Processing]
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: Project
+          Value: ai-clip-finder
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Purpose
+          Value: processing-artifacts
+
+Outputs:
+  UploadsBucketName:
+    Value: !Ref UploadsBucket
+    Export:
+      Name: !Sub "${ProjectPrefix}-uploads-bucket"
+  UploadsBucketArn:
+    Value: !GetAtt UploadsBucket.Arn
+    Export:
+      Name: !Sub "${ProjectPrefix}-uploads-bucket-arn"
+  ProcessingBucketName:
+    Value: !Ref ProcessingBucket
+    Export:
+      Name: !Sub "${ProjectPrefix}-processing-bucket"
+  ProcessingBucketArn:
+    Value: !GetAtt ProcessingBucket.Arn
+    Export:
+      Name: !Sub "${ProjectPrefix}-processing-bucket-arn"

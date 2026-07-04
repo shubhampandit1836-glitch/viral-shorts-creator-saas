@@ -1,0 +1,34 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: |
+  AI Clip Finder - Staging (orchestrator reference)
+  ─────────────────────────────────────────────────
+  This file documents the stack layout. Use deploy.sh to deploy
+  the modular templates in templates/ — do NOT deploy this file directly.
+
+  Stack order:
+    1. acf-staging-storage      → templates/01-storage.yaml
+    2. acf-staging-iam          → templates/02-iam.yaml
+    3. acf-staging-lambdas-pipeline → templates/03-lambdas-pipeline.yaml
+    4. acf-staging-storage      → (re-deploy with S3 trigger ARN)
+    5. acf-staging-lambdas-api  → templates/04-lambdas-api.yaml
+    6. acf-staging-api          → templates/05-api-gateway.yaml
+
+  Architecture:
+    Users → API Gateway → Lambdas → S3 (processing bucket)
+    Video Upload Bucket (S3) → Trigger Lambda → Pipeline chain
+
+Parameters:
+  Environment:
+    Type: String
+    Default: staging
+  ProjectPrefix:
+    Type: String
+    Default: acf-staging
+
+Resources:
+  Placeholder:
+    Type: AWS::CloudFormation::WaitConditionHandle
+
+Outputs:
+  DeployCommand:
+    Value: "./infra/cloudformation/staging/deploy.sh"
